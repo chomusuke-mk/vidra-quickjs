@@ -1,0 +1,15 @@
+services:
+  quickjs-builder:
+    image: javiermk/vidra-quickjs:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      # Inyecta la versión de QuickJS; si está vacía, usa "master" por defecto.
+      - QUICKJS_VERSION=${QUICKJS_VERSION:-master}
+    volumes:
+      - ./dist:/app/dist
+      - ./quickjs-src:/app/quickjs # Caché del código fuente en C
+      - ./compile.sh:/app/compile.sh:ro
+    working_dir: /app
+    entrypoint: ["/app/compile.sh"]
