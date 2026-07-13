@@ -1,6 +1,6 @@
 # Multi-Platform QuickJS Builder (Docker & GitHub Actions)
 
-Este proyecto proporciona un entorno automatizado y reproducible basado en Docker para realizar compilación cruzada del motor de JavaScript **QuickJS** (creado por Fabrice Bellard) hacia múltiples sistemas operativos y arquitecturas.
+Este proyecto proporciona un entorno automatizado y reproducible basado en Docker para realizar compilación cruzada del motor de JavaScript **QuickJS** hacia múltiples sistemas operativos y arquitecturas.
 
 A diferencia del software distribuido por defecto, este generador compila ejecutables altamente optimizados, independientes y listos para producción.
 

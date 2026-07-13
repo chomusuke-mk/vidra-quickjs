@@ -8,13 +8,15 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Descargar e instalar el Android NDK
+ARG NDK_VERSION=r27d
 WORKDIR /opt
-RUN wget -q https://dl.google.com/android/repository/android-ndk-r27b-linux.zip \
-    && unzip -q android-ndk-r27b-linux.zip \
-    && rm android-ndk-r27b-linux.zip
+RUN wget -q https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip \
+    && unzip -q android-ndk-${NDK_VERSION}-linux.zip \
+    && mv android-ndk-${NDK_VERSION} android-ndk-linux \
+    && rm android-ndk-${NDK_VERSION}-linux.zip
 
-ENV ANDROID_NDK_HOME=/opt/android-ndk-r27b
-ENV NDK_HOME=/opt/android-ndk-r27b
+ENV ANDROID_NDK_HOME=/opt/android-ndk-linux
+ENV NDK_HOME=/opt/android-ndk-linux
 
 WORKDIR /app
 COPY config.sh /app/config.sh

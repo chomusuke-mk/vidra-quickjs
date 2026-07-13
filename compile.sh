@@ -8,7 +8,6 @@ TARGET_ARCH=${2:-"all"}
 # Variables globales para QuickJS y Android
 # shellcheck disable=SC1091
 source /app/config.sh
-QJS_VERSION="$QUICKJS_VERSION"
 API_LEVEL=24
 TOOLCHAIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64"
 
@@ -16,21 +15,13 @@ echo "=== Preparando el entorno ==="
 rm -rf /app/dist/*
 mkdir -p /app/dist
 
-echo "Descargando código fuente de QuickJS (versión: $QJS_VERSION)..."
-BASE_REPO=${QUICKJS_REPO%.git}
-TAR_URL="${BASE_REPO}/archive/${QJS_VERSION}.tar.gz"
+echo "Descargando código fuente de QuickJS (versión: $QUICKJS_VERSION)..."
+TAR_URL="https://github.com/${QUICKJS_REPO}/archive/${QUICKJS_VERSION}.tar.gz"
 
-# Siempre descargamos fresco para garantizar limpieza y evitar estado de git
-rm -rf /app/quickjs/* /app/quickjs/.[!.]*
 mkdir -p /app/quickjs
 cd /app/quickjs
 
-if [ -n "$GH_TOKEN" ]; then
-  # Usar token en el header para evitar rate-limits
-  curl -sL -H "Authorization: token $GH_TOKEN" "$TAR_URL" | tar xz --strip-components=1
-else
-  curl -sL "$TAR_URL" | tar xz --strip-components=1
-fi
+curl -sL "$TAR_URL" | tar xz --strip-components=1
 
 if [ ! -f "CMakeLists.txt" ]; then
   echo "❌ Error: No se pudo extraer el código fuente correctamente desde $TAR_URL"
@@ -135,6 +126,8 @@ all)
   build_linux
   build_windows
   build_android "arm64-v8a" "aarch64-linux-android"
+	build_android "armeabi-v7a" "armv7a-linux-androideabi"
+	build_android "x86" "i686-linux-android"
   build_android "x86_64" "x86_64-linux-android"
   ;;
 *)

@@ -71,6 +71,8 @@ jobs:
 
           # Copiar y renombrar los archivos binarios directamente sin comprimir
           cp dist/android-arm64-v8a/qjs   release_assets/quickjs-android-arm64-v8a || true
+          cp dist/android-armeabi-v7a/qjs release_assets/quickjs-android-armeabi-v7a || true
+          cp dist/android-x86/qjs        release_assets/quickjs-android-x86 || true
           cp dist/android-x86_64/qjs      release_assets/quickjs-android-x86_64 || true
           cp dist/linux-x86_64/qjs        release_assets/quickjs-linux-x86_64 || true
           cp dist/windows-x86_64/qjs.exe  release_assets/quickjs-windows-x86_64.exe || true

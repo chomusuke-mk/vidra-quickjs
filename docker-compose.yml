@@ -4,11 +4,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    environment:
-      - GH_TOKEN=${GH_TOKEN:-}
     volumes:
       - ./dist:/app/dist
-      - ./quickjs-src:/app/quickjs # Caché del código fuente en C
       - ./config.sh:/app/config.sh:ro
       - ./compile.sh:/app/compile.sh:ro
     working_dir: /app
