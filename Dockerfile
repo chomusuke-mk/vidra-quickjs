@@ -17,7 +17,8 @@ ENV ANDROID_NDK_HOME=/opt/android-ndk-r27b
 ENV NDK_HOME=/opt/android-ndk-r27b
 
 WORKDIR /app
+COPY config.sh /app/config.sh
 COPY compile.sh /app/compile.sh
-RUN chmod +x /app/compile.sh
+RUN chmod +x /app/config.sh /app/compile.sh
 
 ENTRYPOINT ["/app/compile.sh"]

@@ -5,11 +5,11 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      # Inyecta la versión de QuickJS; si está vacía, usa "master" por defecto.
-      - QUICKJS_VERSION=${QUICKJS_VERSION:-master}
+      - GH_TOKEN=${GH_TOKEN:-}
     volumes:
       - ./dist:/app/dist
       - ./quickjs-src:/app/quickjs # Caché del código fuente en C
+      - ./config.sh:/app/config.sh:ro
       - ./compile.sh:/app/compile.sh:ro
     working_dir: /app
     entrypoint: ["/app/compile.sh"]

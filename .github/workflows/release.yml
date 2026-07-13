@@ -2,12 +2,6 @@ name: Build and Release QuickJS
 
 on:
   workflow_dispatch:
-    inputs:
-      quickjs_version:
-        description: 'Versión de QuickJS (branch, tag o commit). Deja en blanco para usar el último commit de master.'
-        required: false
-        type: string
-        default: ''
 
 # Permisos necesarios para crear la Release, subir archivos y firmar la procedencia (Attestation)
 permissions:
@@ -22,17 +16,15 @@ jobs:
       target_version: ${{ steps.determine_version.outputs.version }}
       should_build: ${{ steps.check_release.outputs.should_build }}
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Fetch QuickJS Target Version
         id: determine_version
         run: |
-          if [ -n "${{ inputs.quickjs_version }}" ]; then
-            VERSION="${{ inputs.quickjs_version }}"
-            echo "Se utilizará la versión ingresada manualmente: $VERSION"
-          else
-            echo "No se ingresó versión. Obteniendo el último commit de master..."
-            VERSION=$(curl -s https://api.github.com/repos/bellard/quickjs/commits/master | jq -r '.sha' | cut -c 1-7)
-            echo "La última versión encontrada es: $VERSION"
-          fi
+          source config.sh
+          VERSION="$VIDRA_QUICKJS_VERSION"
+          echo "La versión para release es: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Check if Release Assets Exist
@@ -43,7 +35,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           RELEASE_INFO=$(gh release view "$VERSION" --repo "$REPO" --json assets 2>/dev/null || echo "not_found")
-          
+
           if [ "$RELEASE_INFO" == "not_found" ]; then
             echo "La release $VERSION no existe. Se lanzará la compilación."
             echo "should_build=true" >> $GITHUB_OUTPUT
@@ -68,23 +60,21 @@ jobs:
 
       - name: Compilar QuickJS (vía Docker)
         env:
-          QUICKJS_VERSION: ${{ needs.check_version.outputs.target_version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Iniciando contenedor para compilar la versión: $QUICKJS_VERSION"
+          echo "Iniciando contenedor para compilar..."
           docker compose run --rm quickjs-builder all
 
       - name: Renombrar Assets y Generar Checksums
         run: |
           mkdir -p release_assets
-          
+
           # Copiar y renombrar los archivos binarios directamente sin comprimir
           cp dist/android-arm64-v8a/qjs   release_assets/quickjs-android-arm64-v8a || true
-          cp dist/android-armeabi-v7a/qjs release_assets/quickjs-android-armeabi-v7a || true
-          cp dist/android-x86/qjs         release_assets/quickjs-android-x86 || true
           cp dist/android-x86_64/qjs      release_assets/quickjs-android-x86_64 || true
           cp dist/linux-x86_64/qjs        release_assets/quickjs-linux-x86_64 || true
           cp dist/windows-x86_64/qjs.exe  release_assets/quickjs-windows-x86_64.exe || true
-          
+
           # Generar los archivos de sumas de verificación
           cd release_assets
           sha256sum quickjs-* > SHA2-256SUMS
@@ -95,36 +85,37 @@ jobs:
         env:
           VERSION: ${{ needs.check_version.outputs.target_version }}
         run: |
+          source config.sh
           # Crear el cuerpo de la release en Markdown dinámicamente
           cat <<EOF > release_notes.md
-          # 🚀 QuickJS Multi-platform Release ($VERSION)
-          
+          # 🚀 QuickJS Multi-platform Release (v$VERSION)
+
           Compilación nativa y automatizada de los binarios del motor **QuickJS** utilizando un entorno aislado en Docker.
-          
+
           ### 📦 Información del Motor
-          - **Versión/Commit de QuickJS Utilizado:** \`$VERSION\`
-          - **Origen del Código Fuente:** [bellard/quickjs](https://github.com/bellard/quickjs)
+          - **Versión/Commit de QuickJS Utilizado:** \`$QUICKJS_VERSION\`
+          - **Origen del Código Fuente:** [$QUICKJS_REPO]($QUICKJS_REPO)
           - **Fecha de Compilación:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          
+
           ### 🛠️ Detalles de los Ejecutables Publicados
           Todos los binarios se han distribuido de forma **directa y sin compresión** para facilitar integraciones directas con herramientas de descarga automática como \`curl\` o \`wget\`.
-          
+
           - **Linux (x86_64):** Binario estático independiente (\`LDFLAGS="-static"\`).
           - **Windows (x86_64):** Binario ejecutable estático compilado mediante MinGW.
           - **Android (All ABIs):** Binarios dinámicos nativos de posición independiente (PIE) optimizados para Android 7.0+ (API 24) y vinculados a Bionic (\`libc\`).
-          
+
           ### 🔒 Verificación de Integridad (SHA2-256 Checksums)
           \`\`\`text
           $(cat release_assets/SHA2-256SUMS)
           \`\`\`
-          
+
           ⚠️ *Nota: Los archivos disponen de certificación de procedencia criptográfica de GitHub (Artifact Attestations). Puedes verificar su validez usando la extensión CLI de GitHub.*
           EOF
 
       - name: Certificar Procedencia de los Assets (Attestation de Verificación)
         uses: actions/attest-build-provenance@v1
         with:
-          subject-path: 'release_assets/quickjs-*'
+          subject-path: "release_assets/quickjs-*"
 
       - name: Publicar Release y Subir Assets
         env:
@@ -132,10 +123,10 @@ jobs:
           VERSION: ${{ needs.check_version.outputs.target_version }}
           REPO: ${{ github.repository }}
         run: |
-          echo "Creando o actualizando Release en GitHub para la versión $VERSION..."
-          gh release create "$VERSION" --repo "$REPO" \
-            --title "QuickJS $VERSION" \
-            --notes-file release_notes.md || true
-          
+          echo "Creando o actualizando Release en GitHub para la versión v$VERSION..."
+          gh release create "$VERSION" \
+            --title "v$VERSION" \
+            --notes-file release_notes.md || echo "El release ya existe, procediendo a subir assets..."
+
           echo "Subiendo archivos crudos y sumas de verificación..."
-          gh release upload "$VERSION" --repo "$REPO" release_assets/* --clobber
+          gh release upload "$VERSION" release_assets/* --clobber
