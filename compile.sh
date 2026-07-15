@@ -114,6 +114,8 @@ android)
   else
     case "$TARGET_ARCH" in
     arm64-v8a) build_android "arm64-v8a" "aarch64-linux-android" ;;
+		armeabi-v7a) build_android "armeabi-v7a" "armv7a-linux-androideabi" ;;
+		x86) build_android "x86" "i686-linux-android" ;;
     x86_64) build_android "x86_64" "x86_64-linux-android" ;;
     *)
       echo "❌ Arquitectura de Android no válida: $TARGET_ARCH"
