@@ -48,7 +48,7 @@ build_linux() {
 	cmake .. -DCMAKE_BUILD_TYPE=Release -DQJS_BUILD_CLI_STATIC=ON
 	cmake --build . -j"$(nproc)"
 	strip qjs
-	cp qjs "$BUILD_DIR/qjs"
+	cp qjs "$BUILD_DIR/quickjs"
 
 	popd >/dev/null
 	echo "QuickJS compilado y almacenado en: $BUILD_DIR"
@@ -76,7 +76,7 @@ build_windows() {
 		-DCMAKE_BUILD_TYPE=Release
 	cmake --build . -j"$(nproc)"
 	x86_64-w64-mingw32-strip qjs.exe
-	cp qjs.exe "$BUILD_DIR/qjs.exe"
+	cp qjs.exe "$BUILD_DIR/quickjs.exe"
 
 	popd >/dev/null
 	echo "QuickJS compilado y almacenado en: $BUILD_DIR"
@@ -112,7 +112,7 @@ build_android() {
 
 	cmake --build . -j"$(nproc)"
 	"$TOOLCHAIN/bin/llvm-strip" qjs
-	cp qjs "$BUILD_DIR/qjs"
+	cp qjs "$BUILD_DIR/quickjs"
 
 	popd >/dev/null
 	echo "QuickJS compilado y almacenado en: $BUILD_DIR"
