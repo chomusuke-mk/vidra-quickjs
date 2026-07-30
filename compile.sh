@@ -1,31 +1,31 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # --- Captura de Parámetros ---
 TARGET_OS=${1:-"all"}
 TARGET_ARCH=${2:-"all"}
 
-# Variables globales para QuickJS y Android
 # shellcheck disable=SC1091
-source /app/config.sh
+source /config.sh
 API_LEVEL=24
 TOOLCHAIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64"
 
 echo "=== Preparando el entorno ==="
-rm -rf /app/dist/*
-mkdir -p /app/dist
-
 echo "Descargando código fuente de QuickJS (versión: $QUICKJS_VERSION)..."
 TAR_URL="https://github.com/${QUICKJS_REPO}/archive/${QUICKJS_VERSION}.tar.gz"
 
-mkdir -p /app/quickjs
-cd /app/quickjs
+VIDRA_QUICKJS_DIR="/vidra/quickjs"
+VIDRA_TEMP="/vidra-tmp"
+VIDRA_BUILD_DIR="/dist"
+rm -rf "$VIDRA_QUICKJS_DIR" "$VIDRA_TEMP"
+mkdir -p "$VIDRA_QUICKJS_DIR" "$VIDRA_TEMP"
+cd "$VIDRA_QUICKJS_DIR"
 
 curl -sL "$TAR_URL" | tar xz --strip-components=1
 
 if [ ! -f "CMakeLists.txt" ]; then
-  echo "❌ Error: No se pudo extraer el código fuente correctamente desde $TAR_URL"
-  exit 1
+	echo "❌ Error: No se pudo extraer el código fuente correctamente desde $TAR_URL"
+	exit 1
 fi
 
 # ==========================================
@@ -33,63 +33,90 @@ fi
 # ==========================================
 
 build_linux() {
-  echo "=================================================="
-  echo " Compilando Linux (x86_64) - Estático"
-  echo "=================================================="
-  
-  rm -rf build_linux
-  cmake -B build_linux -DCMAKE_BUILD_TYPE=Release -DQJS_BUILD_CLI_STATIC=ON
-  cmake --build build_linux -j"$(nproc)"
-  
-  strip build_linux/qjs || true
-  
-  mkdir -p /app/dist/linux-x86_64
-  cp build_linux/qjs /app/dist/linux-x86_64/
+	echo "=================================================="
+	echo " Compilando Linux (x86_64) "
+	echo "=================================================="
+
+	local QUICKJS_DIR="$VIDRA_TEMP/linux-x86_64"
+	local BUILD_DIR="$VIDRA_BUILD_DIR/linux-x86_64"
+	
+	rm -rf "$QUICKJS_DIR" "$BUILD_DIR" && mkdir -p "$QUICKJS_DIR" "$BUILD_DIR" "$QUICKJS_DIR/vidra-build"
+	cp -r "$VIDRA_QUICKJS_DIR"/* "$QUICKJS_DIR"
+
+	pushd "$QUICKJS_DIR/vidra-build" >/dev/null
+
+	cmake .. -DCMAKE_BUILD_TYPE=Release -DQJS_BUILD_CLI_STATIC=ON
+	cmake --build . -j"$(nproc)"
+	strip qjs
+	cp qjs "$BUILD_DIR/qjs"
+
+	popd >/dev/null
+	echo "QuickJS compilado y almacenado en: $BUILD_DIR"
+	echo "============= Compilación completada - Linux (x86_64) ============="
 }
 
 build_windows() {
-  echo "=================================================="
-  echo " Compilando Windows (x86_64-mingw32) - Estático"
-  echo "=================================================="
-  
-  rm -rf build_windows
-  cmake -B build_windows \
-    -DCMAKE_SYSTEM_NAME=Windows \
-    -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
-    -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
-    -DCMAKE_RC_COMPILER=x86_64-w64-mingw32-windres \
-    -DQJS_BUILD_CLI_STATIC=ON \
-    -DCMAKE_BUILD_TYPE=Release
-    
-  cmake --build build_windows -j"$(nproc)"
-  
-  x86_64-w64-mingw32-strip build_windows/qjs.exe || true
+	echo "=================================================="
+	echo " Compilando Windows (x86_64-mingw32) "
+	echo "=================================================="
 
-  mkdir -p /app/dist/windows-x86_64
-  cp build_windows/qjs.exe /app/dist/windows-x86_64/
+	local QUICKJS_DIR="$VIDRA_TEMP/windows-x86_64"
+	local BUILD_DIR="$VIDRA_BUILD_DIR/windows-x86_64"
+	rm -rf "$QUICKJS_DIR" "$BUILD_DIR" && mkdir -p "$QUICKJS_DIR" "$BUILD_DIR" "$QUICKJS_DIR/vidra-build"
+	cp -r "$VIDRA_QUICKJS_DIR"/* "$QUICKJS_DIR"
+
+	pushd "$QUICKJS_DIR/vidra-build" >/dev/null
+
+	cmake .. \
+		-DCMAKE_SYSTEM_NAME=Windows \
+		-DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+		-DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
+		-DCMAKE_RC_COMPILER=x86_64-w64-mingw32-windres \
+		-DQJS_BUILD_CLI_STATIC=ON \
+		-DCMAKE_BUILD_TYPE=Release
+	cmake --build . -j"$(nproc)"
+	x86_64-w64-mingw32-strip qjs.exe
+	cp qjs.exe "$BUILD_DIR/qjs.exe"
+
+	popd >/dev/null
+	echo "QuickJS compilado y almacenado en: $BUILD_DIR"
+	echo "============= Compilación completada - Windows (x86_64) ============="
 }
 
 build_android() {
-  local ARCH=$1
+	local -x TARGET_ARCH=$1
+	echo "=================================================="
+	echo " Compilando Android: $TARGET_ARCH "
+	echo "=================================================="
 
-  echo "=================================================="
-  echo " Compilando Android: $ARCH - Dinámico PIE (Nativo)"
-  echo "=================================================="
+	local QUICKJS_DIR="$VIDRA_TEMP/android-$TARGET_ARCH"
+	local BUILD_DIR="$VIDRA_BUILD_DIR/android-$TARGET_ARCH"
+	rm -rf "$QUICKJS_DIR" "$BUILD_DIR" && mkdir -p "$QUICKJS_DIR" "$BUILD_DIR" "$QUICKJS_DIR/vidra-build"
+	cp -r "$VIDRA_QUICKJS_DIR"/* "$QUICKJS_DIR"
 
-  rm -rf "build_android_$ARCH"
-  cmake -B "build_android_$ARCH" \
-    -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \
-    -DANDROID_ABI="$ARCH" \
-    -DANDROID_PLATFORM=android-$API_LEVEL \
-    -DCMAKE_BUILD_TYPE=Release
-    
-  cmake --build "build_android_$ARCH" -j"$(nproc)"
+	local -x HOST
+	case "$TARGET_ARCH" in
+	arm64-v8a) HOST="aarch64-linux-android" ;;
+	armeabi-v7a) HOST="armv7a-linux-androideabi" ;;
+	x86) HOST="i686-linux-android" ;;
+	x86_64) HOST="x86_64-linux-android" ;;
+	esac
 
-  local STRIP_PATH="$TOOLCHAIN/bin/llvm-strip"
-  "$STRIP_PATH" "build_android_$ARCH/qjs" || true
+	pushd "$QUICKJS_DIR/vidra-build" >/dev/null
 
-  mkdir -p /app/dist/android-"$ARCH"
-  cp "build_android_$ARCH/qjs" /app/dist/android-"$ARCH"/
+	cmake .. \
+		-DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \
+		-DANDROID_ABI="$TARGET_ARCH" \
+		-DANDROID_PLATFORM=android-$API_LEVEL \
+		-DCMAKE_BUILD_TYPE=Release
+
+	cmake --build . -j"$(nproc)"
+	"$TOOLCHAIN/bin/llvm-strip" qjs
+	cp qjs "$BUILD_DIR/qjs"
+
+	popd >/dev/null
+	echo "QuickJS compilado y almacenado en: $BUILD_DIR"
+	echo "============= Compilación completada - Android ($TARGET_ARCH) ============="
 }
 
 # ==========================================
@@ -100,43 +127,43 @@ echo ">> Objetivo seleccionado: SO=[$TARGET_OS] | Arquitectura=[$TARGET_ARCH]"
 
 case "$TARGET_OS" in
 linux)
-  build_linux
-  ;;
+	build_linux
+	;;
 windows)
-  build_windows
-  ;;
+	build_windows
+	;;
 android)
-  if [ "$TARGET_ARCH" == "all" ]; then
-    build_android "arm64-v8a" "aarch64-linux-android"
-    build_android "armeabi-v7a" "armv7a-linux-androideabi"
-    build_android "x86" "i686-linux-android"
-    build_android "x86_64" "x86_64-linux-android"
-  else
-    case "$TARGET_ARCH" in
-    arm64-v8a) build_android "arm64-v8a" "aarch64-linux-android" ;;
-		armeabi-v7a) build_android "armeabi-v7a" "armv7a-linux-androideabi" ;;
-		x86) build_android "x86" "i686-linux-android" ;;
-    x86_64) build_android "x86_64" "x86_64-linux-android" ;;
-    *)
-      echo "❌ Arquitectura de Android no válida: $TARGET_ARCH"
-      exit 1
-      ;;
-    esac
-  fi
-  ;;
+	if [ "$TARGET_ARCH" == "all" ]; then
+		build_android "arm64-v8a"
+		build_android "armeabi-v7a"
+		build_android "x86"
+		build_android "x86_64"
+	else
+		case "$TARGET_ARCH" in
+		arm64-v8a) build_android "arm64-v8a" ;;
+		armeabi-v7a) build_android "armeabi-v7a" ;;
+		x86) build_android "x86" ;;
+		x86_64) build_android "x86_64" ;;
+		*)
+			echo "❌ Arquitectura de Android no válida: $TARGET_ARCH"
+			exit 1
+			;;
+		esac
+	fi
+	;;
 all)
-  build_linux
-  build_windows
-  build_android "arm64-v8a" "aarch64-linux-android"
-	build_android "armeabi-v7a" "armv7a-linux-androideabi"
-	build_android "x86" "i686-linux-android"
-  build_android "x86_64" "x86_64-linux-android"
-  ;;
+	build_linux
+	build_windows
+	build_android "arm64-v8a"
+	build_android "armeabi-v7a"
+	build_android "x86"
+	build_android "x86_64"
+	;;
 *)
-  echo "❌ Sistema operativo no válido: $TARGET_OS"
-  exit 1
-  ;;
+	echo "❌ Sistema operativo no válido: $TARGET_OS"
+	exit 1
+	;;
 esac
 
 echo "=== Proceso completado exitosamente ==="
-echo "Los binarios están listos en /app/dist"
+echo "Los binarios están listos en $VIDRA_BUILD_DIR"

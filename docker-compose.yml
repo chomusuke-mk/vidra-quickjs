@@ -1,12 +1,10 @@
 services:
   quickjs-builder:
-    image: javiermk/vidra-quickjs:latest
     build:
       context: .
-      dockerfile: Dockerfile
+    image: javiermk/vidra-quickjs:latest
     volumes:
-      - ./dist:/app/dist
-      - ./config.sh:/app/config.sh:ro
-      - ./compile.sh:/app/compile.sh:ro
-    working_dir: /app
-    entrypoint: ["/app/compile.sh"]
+      - ./dist:/dist
+      - ./config.sh:/config.sh:ro
+      - ./compile.sh:/compile.sh:ro
+    entrypoint: ["/compile.sh"]

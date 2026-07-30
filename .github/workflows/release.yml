@@ -19,7 +19,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Fetch QuickJS Target Version
+      - name: Get QuickJS Target Version
         id: determine_version
         run: |
           source config.sh
@@ -70,12 +70,12 @@ jobs:
           mkdir -p release_assets
 
           # Copiar y renombrar los archivos binarios directamente sin comprimir
-          cp dist/android-arm64-v8a/qjs   release_assets/quickjs-android-arm64-v8a || true
-          cp dist/android-armeabi-v7a/qjs release_assets/quickjs-android-armeabi-v7a || true
-          cp dist/android-x86/qjs        release_assets/quickjs-android-x86 || true
-          cp dist/android-x86_64/qjs      release_assets/quickjs-android-x86_64 || true
-          cp dist/linux-x86_64/qjs        release_assets/quickjs-linux-x86_64 || true
-          cp dist/windows-x86_64/qjs.exe  release_assets/quickjs-windows-x86_64.exe || true
+          cp dist/android-arm64-v8a/qjs   release_assets/quickjs-android-arm64-v8a
+          cp dist/android-armeabi-v7a/qjs release_assets/quickjs-android-armeabi-v7a
+          cp dist/android-x86/qjs         release_assets/quickjs-android-x86
+          cp dist/android-x86_64/qjs      release_assets/quickjs-android-x86_64
+          cp dist/linux-x86_64/qjs        release_assets/quickjs-linux-x86_64
+          cp dist/windows-x86_64/qjs.exe  release_assets/quickjs-windows-x86_64.exe
 
           # Generar los archivos de sumas de verificación
           cd release_assets
@@ -96,7 +96,7 @@ jobs:
 
           ### 📦 Información del Motor
           - **Versión/Commit de QuickJS Utilizado:** \`$QUICKJS_VERSION\`
-          - **Origen del Código Fuente:** [$QUICKJS_REPO]($QUICKJS_REPO)
+          - **Origen del Código Fuente:** [https://github.com/$QUICKJS_REPO]($QUICKJS_REPO)
           - **Fecha de Compilación:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
 
           ### 🛠️ Detalles de los Ejecutables Publicados
