@@ -17,7 +17,7 @@ jobs:
       should_build: ${{ steps.check_release.outputs.should_build }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Get QuickJS Target Version
         id: determine_version
@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Compilar QuickJS (vía Docker)
         env:
@@ -115,7 +115,7 @@ jobs:
           EOF
 
       - name: Certificar Procedencia de los Assets (Attestation de Verificación)
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: "release_assets/quickjs-*"
 
