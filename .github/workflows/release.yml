@@ -123,7 +123,7 @@ jobs:
 
           ### 📦 Información del Motor
           - **Versión/Commit de QuickJS Utilizado:** \`$QUICKJS_VERSION\`
-          - **Origen del Código Fuente:** [https://github.com/$QUICKJS_REPO]($QUICKJS_REPO)
+          - **Origen del Código Fuente:** [$QUICKJS_REPO](https://github.com/$QUICKJS_REPO)
           - **Fecha de Compilación:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
 
           ### 🛠️ Detalles de los Ejecutables Publicados
