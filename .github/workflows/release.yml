@@ -50,10 +50,25 @@ jobs:
             fi
           fi
 
-  build_and_release:
+  build:
     needs: check_version
     if: needs.check_version.outputs.should_build == 'true'
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target_os: linux
+            target_arch: x86_64
+          - target_os: windows
+            target_arch: x86_64
+          - target_os: android
+            target_arch: arm64-v8a
+          - target_os: android
+            target_arch: armeabi-v7a
+          - target_os: android
+            target_arch: x86
+          - target_os: android
+            target_arch: x86_64
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -62,22 +77,34 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Iniciando contenedor para compilar..."
-          docker compose run --rm quickjs-builder all
-
-      - name: Renombrar Assets y Generar Checksums
+          echo "Iniciando contenedor para compilar ${{ matrix.target_os }} ${{ matrix.target_arch }}..."
+          docker compose run --rm quickjs-builder ${{ matrix.target_os }} ${{ matrix.target_arch }}
+      
+      - name: Zip Assets
         run: |
           mkdir -p release_assets
+          zip -9 -j release_assets/quickjs-${{ matrix.target_os }}-${{ matrix.target_arch }}.zip dist/${{ matrix.target_os }}-${{ matrix.target_arch }}/*
+      
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: quickjs-${{ matrix.target_os }}-${{ matrix.target_arch }}
+          path: release_assets/quickjs-${{ matrix.target_os }}-${{ matrix.target_arch }}.zip
+  release:
+    needs: [check_version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
 
-          # Copiar y renombrar los archivos binarios directamente sin comprimir
-          cp dist/android-arm64-v8a/qjs   release_assets/quickjs-android-arm64-v8a
-          cp dist/android-armeabi-v7a/qjs release_assets/quickjs-android-armeabi-v7a
-          cp dist/android-x86/qjs         release_assets/quickjs-android-x86
-          cp dist/android-x86_64/qjs      release_assets/quickjs-android-x86_64
-          cp dist/linux-x86_64/qjs        release_assets/quickjs-linux-x86_64
-          cp dist/windows-x86_64/qjs.exe  release_assets/quickjs-windows-x86_64.exe
+      - name: Download all artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: release_assets
+          merge-multiple: true
 
-          # Generar los archivos de sumas de verificación
+      - name: Prepare Checksums
+        run: |
           cd release_assets
           sha256sum quickjs-* > SHA2-256SUMS
           sha512sum quickjs-* > SHA2-512SUMS
@@ -100,7 +127,6 @@ jobs:
           - **Fecha de Compilación:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
 
           ### 🛠️ Detalles de los Ejecutables Publicados
-          Todos los binarios se han distribuido de forma **directa y sin compresión** para facilitar integraciones directas con herramientas de descarga automática como \`curl\` o \`wget\`.
 
           - **Linux (x86_64):** Binario estático independiente (\`LDFLAGS="-static"\`).
           - **Windows (x86_64):** Binario ejecutable estático compilado mediante MinGW.
